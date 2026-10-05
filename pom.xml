@@ -45,7 +45,7 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>
-                        com.canids.Main
+                        com.canids.ui.DashboardUI
                     </mainClass>
                 </configuration>
             </plugin>
