@@ -32,7 +32,7 @@ Use an IntelliJ Application configuration:
 
 Optional arguments after the output path: windowSeconds strideSeconds. Example: road\road\signal_extractions road-results.csv 6.0 3.2.
 
-The Java program requires translated ROAD signal_extractions CSVs. It does not parse raw candump .log files or decode DBC files itself. The ROAD dataset is external and is not bundled here. Obtain the dataset and prepare translated signal_extractions CSVs under road/road/signal_extractions/. The runner does not parse raw candump logs or decode DBC files.
+The runner requires translated ROAD signal_extractions CSVs under road/road/signal_extractions/. The dataset is not bundled here; obtain it separately. The program does not parse raw candump .log files or decode DBC files.
 
 ## Interpretation and limits
 
