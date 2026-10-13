@@ -1,191 +1,66 @@
 # CAN Masquerade Attack Detection
 
-Java-based simulation of a Controller Area Network (CAN) gateway that detects and blocks masquerade attacks from suspicious or unauthorized ECU clients.
+One Java 21 / Maven project with two demonstration tracks:
 
-## Project Overview
+1. **Live-like CAN simulator:** simulated ECU clients send CAN-like messages over TCP to a gateway. A rule IDS checks identity, message patterns, graph transitions, and signal Z-scores; suspicious clients can be blocked. The JavaFX dashboard displays activity.
+2. **ROAD graph-ML experiment:** an offline Java implementation of the paper-aligned pipeline using ROAD signal_extractions CSVs. It builds sliding-window Message Sequence Graphs, calculates per-CAN-ID signal statistics, learns Node2Vec embeddings, applies SMOTE to training folds, and classifies windows with a Java Random Forest.
 
-This project simulates vehicle ECU communication using Java socket programming. A central CAN gateway receives CAN-like messages from simulated ECUs, checks them against learned normal communication patterns, and blocks abnormal or forged messages.
+These are two run modes in one project. The offline ROAD classifier is not wired into the live TCP gateway, and neither track connects to physical CAN hardware.
 
-The simulation demonstrates how a vehicle network can be attacked when an unknown device tries to pretend to be a legitimate ECU. It also shows how graph-based normal communication patterns can be used to detect and stop suspicious communication.
+## Open the project
 
-## Main Features
+Open this folder in IntelliJ IDEA and set Project SDK to Java 21. Maven resolves JavaFX and JGraphT from pom.xml.
 
-- Simulated CAN gateway server
-- Simulated ECU client
-- WASD-based driving command simulation
-- CAN-like message format
-- Normal communication pattern learning
-- Graph-style source and destination relationship checking
-- Masquerade attack detection
-- Suspicious command blocking
-- Console-based intrusion alerts
+## Project map
 
-## Technologies Used
+    src/main/java/com/canids/
+      Main.java                         socket gateway demo entry point
+      ECUTest.java                      normal / attacker client demo
+      server/                           gateway and rule-based IDS
+      graph/                            JGraphT message-sequence graph and node statistics
+      model/                            CAN messages, ECU identities, signal statistics
+      ecu/                              simulated ECU traffic
+      attack/                           attack clients and scenarios
+      mitigation/                       blocklist and client isolation
+      logging/                          normal and attack CSV logging
+      ui/                               JavaFX dashboard
+      research/road/
+        RoadExperimentMain.java         ROAD experiment entry point
+        data/                            translated ROAD CSV parser and records
+        feature/                         windows and per-CAN-ID signal statistics
+        graph/                           weighted MSG and Node2Vec implementation
+        ml/                              SMOTE and Java Random Forest
+    docs/
+      PROJECT_WALKTHROUGH.md             presentation order and algorithm map
+      ROAD_PIPELINE.md                   parameters, data labels, and evaluation notes
+    logs/                                runtime CSV logs (generated locally; Git-ignored)
+    road/road/signal_extractions/        local ROAD CSVs (download separately; Git-ignored)
+    road-results.csv                     latest ROAD five-fold results
 
-- Java 21
-- Java Socket Programming
-- TCP/IP localhost communication
-- Java collections such as `HashSet` and `HashMap`
-- Maven project structure
+The ROAD dataset is not bundled in this repository. Obtain and prepare the ROAD signal_extractions CSVs, then place them under road/road/signal_extractions/. This Java pipeline does not decode raw candump logs or DBC files.
 
-## Message Format
+## Run the live-like simulator
 
-The project uses a simple CAN-like text format:
+In IntelliJ, run com.canids.Main to start the gateway. Run com.canids.ECUTest in a second configuration. Select normal mode to send valid traffic or attacker mode to exercise identity/masquerade detection. The normal and attack event CSVs are written to logs/.
 
-```text
-MSG_ID|SOURCE_ECU|DESTINATION_ECU|DATA|TIME
-```
+To open the JavaFX dashboard, run com.canids.ui.DashboardUI.
 
-Example:
+## Run the ROAD experiment
 
-```text
-100|ECU_ENGINE|ECU_DASHBOARD|SPEED=60|10:30:15
-```
+Create an IntelliJ Application configuration:
 
-## Normal ECU Patterns
+- Main class: com.canids.research.road.RoadExperimentMain
+- Program arguments: road\road\signal_extractions road-results.csv
+- VM options: -Xmx8g
 
-The gateway starts with learned normal communication patterns:
+Optional window/stride arguments follow the result filename. Defaults are **6.0 seconds** and **3.2 seconds**, matching the paper's described time-window setting.
 
-```text
-ECU_ENGINE -> ECU_DASHBOARD
-ECU_BRAKE  -> ECU_DASHBOARD
-ECU_SENSOR -> ECU_DASHBOARD
-ECU_ENGINE -> ECU_BRAKE
-```
+The runner prints progress for each capture and fold metrics, then writes road-results.csv. See docs/ROAD_PIPELINE.md for the algorithm and result interpretation.
 
-If a message does not match the learned pattern, the gateway treats it as suspicious and blocks the connection.
+## Implemented algorithms
 
-## Project Structure
+The simulator implements identity validation, allowed message-pattern matching, directed transition checks, signal mean/std-dev tracking with an absolute Z-score threshold of 3, client blocking, and CSV logging.
 
-```text
-src/main/java/com/canids
-├── Main.java
-├── ECUTest.java
-├── ecu
-│   └── ECUSimulator.java
-├── model
-│   ├── CANMessage.java
-│   ├── ClientInfo.java
-│   └── ECU.java
-└── server
-    ├── CANGatewayServer.java
-    ├── ClientHandler.java
-    └── CANIntrusionDetectionSystem.java
-```
+The ROAD runner implements the reported Random Forest path in Java: ROAD CSV reading, duplicate-capture filtering, sliding windows, weighted CAN-ID graphs, per-node signal mean/std-dev features with linear interpolation, Node2Vec walks and skip-gram embeddings, graph/signal feature fusion, training-fold-only SMOTE, a custom Java Random Forest, and five-fold AUC-ROC/accuracy/inference-time reporting.
 
-## How to Run
-
-Open the project folder:
-
-```powershell
-cd "G:\Programming\Java Programming\MiniProject 2\CANMasqueradeDetection"
-```
-
-Compile the project:
-
-```powershell
-javac -d target\classes src\main\java\com\canids\model\CANMessage.java src\main\java\com\canids\model\ClientInfo.java src\main\java\com\canids\model\ECU.java src\main\java\com\canids\server\CANIntrusionDetectionSystem.java src\main\java\com\canids\server\ClientHandler.java src\main\java\com\canids\server\CANGatewayServer.java src\main\java\com\canids\ecu\ECUSimulator.java src\main\java\com\canids\ECUTest.java src\main\java\com\canids\Main.java
-```
-
-Start the gateway in Terminal 1:
-
-```powershell
-java -cp target\classes com.canids.Main
-```
-
-Expected output:
-
-```text
-CAN Gateway started on port 5000
-Normal communication learned...
-```
-
-Run the ECU test client in Terminal 2:
-
-```powershell
-java -cp target\classes com.canids.ECUTest
-```
-
-## Testing Normal Driving Mode
-
-Choose:
-
-```text
-1
-```
-
-Then use:
-
-```text
-w = accelerate
-a = steer left
-s = brake
-d = steer right
-x = unwanted forged command
-q = quit
-```
-
-Normal commands should be accepted:
-
-```text
-Gateway: VALID|Message accepted
-```
-
-The unwanted command should be blocked:
-
-```text
-Gateway: ABNORMAL COMMUNICATION|Message does not match the learned normal communication graph
-Gateway: CONNECTION BLOCKED
-```
-
-## Testing Attacker Mode
-
-Run `ECUTest` again and choose:
-
-```text
-2
-```
-
-Then send an attack command:
-
-```text
-s
-```
-
-Expected output:
-
-```text
-Gateway: MASQUERADE ATTACK DETECTED|Actual connection is from an unknown device: UNKNOWN_DEVICE
-Gateway: CONNECTION BLOCKED
-```
-
-## IntelliJ IDEA Run Steps
-
-1. Open the project in IntelliJ IDEA.
-2. Set Project SDK to Java 21.
-3. Run `com.canids.Main`.
-4. Keep `Main` running.
-5. Run `com.canids.ECUTest` in another run configuration.
-6. Use normal mode or attacker mode to test detection.
-
-## Example Attack Scenario
-
-An unknown device connects to the gateway and sends:
-
-```text
-200|ECU_ENGINE|ECU_BRAKE|BRAKE=OFF
-```
-
-The message claims to be from `ECU_ENGINE`, but the actual connection is `UNKNOWN_DEVICE`. The gateway detects this as a masquerade attack and blocks the connection.
-
-## Current Scope
-
-This project is a simulation only. It does not connect to a real vehicle CAN bus or real ECU hardware. TCP/IP sockets are used to simulate CAN communication between ECUs and the gateway.
-
-## Future Improvements
-
-- Add JavaFX dashboard
-- Add CSV logging for normal messages and attack events
-- Display the communication graph visually
-- Add vehicle state such as speed, brake, and steering
-- Add more advanced anomaly detection rules
+This is a **paper-aligned implementation, not an exact reproduction**. The paper does not specify all skip-gram settings; this code documents its choices. The paper also compares XGBoost but reports its Random Forest results; this Java project implements the reported Random Forest path, not the optional XGBoost comparison. Evaluation is stratified by windows, so overlapping neighboring windows can cross folds and make scores optimistic.

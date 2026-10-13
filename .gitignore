@@ -44,3 +44,8 @@ build/
 
 ### Mac OS ###
 .DS_Store
+# Local ROAD source dataset; retain locally, do not commit large captures
+/road/
+
+# Runtime-generated simulator outputs
+/logs/*.csv

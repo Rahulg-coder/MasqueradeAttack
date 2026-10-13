@@ -11,11 +11,12 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/**
- * SRS 3.1 & IEEE Paper Section IV Engine:
- * Combines JGraphT Message Sequence Graph (MSG) topology validation with
- * time-series statistical signal annotation (mean mu, std-dev sigma) to detect
- * stealthy masquerade attacks in Controller Area Networks.
+/** Rule-based IDS for the TCP simulator, separate from the ROAD graph-ML pipeline.
+ *
+ * <p>Flow: reject blocked or unauthenticated clients -> validate claimed source
+ * and destination -> optionally learn a normal baseline -> check message patterns
+ * and ECU transitions -> compare signal values with learned Z-scores -> accept
+ * and log the message or block and log it.
  */
 public class CANIntrusionDetectionSystem {
     private final Set<String> registeredEcus = ConcurrentHashMap.newKeySet();
@@ -26,16 +27,15 @@ public class CANIntrusionDetectionSystem {
     private final List<IDSListener> listeners = new CopyOnWriteArrayList<>();
 
     private boolean learningPhase = true;
-    private double zScoreThreshold = 3.0; // IEEE Paper statistical deviation threshold
+    private double zScoreThreshold = 3.0; // Demo IDS threshold; not a ROAD model parameter.
 
     public CANIntrusionDetectionSystem() {
-        // Register default simulated ECUs
         registerEcu("ECU_ENGINE");
         registerEcu("ECU_BRAKE");
         registerEcu("ECU_SENSOR");
         registerEcu("ECU_DASHBOARD");
 
-        // Initialize baseline normal communication patterns and time-series signal statistics
+        // Seed normal message patterns and signal samples for the simulator demo.
         learnNormalPattern(100, "ECU_ENGINE", "ECU_DASHBOARD", "SPEED", 60.0);
         learnNormalPattern(100, "ECU_ENGINE", "ECU_DASHBOARD", "SPEED", 65.0);
         learnNormalPattern(100, "ECU_ENGINE", "ECU_DASHBOARD", "SPEED", 55.0);
@@ -89,9 +89,7 @@ public class CANIntrusionDetectionSystem {
         }
     }
 
-    /**
-     * SRS 3.1 & IEEE Paper Section IV-E Inspection Pipeline
-     */
+    /** Applies the simulator's IDS rules in order and returns an accept-or-block decision. */
     public synchronized DetectionResult inspect(String actualClientId, CANMessage message, Socket socket) {
         String claimedSource = message.getSourceEcu();
         String destination = message.getDestinationEcu();
@@ -99,14 +97,14 @@ public class CANIntrusionDetectionSystem {
 
         DetectionResult result;
 
-        // 0. Check if client is already blocked by Mitigation Module
+        // Step 1: reject connections already on the simulator blocklist.
         if (mitigationModule.isBlocked(actualClientId, clientIp)) {
             result = DetectionResult.blocked("CONNECTION BLOCKED", "Client has been isolated and blocked by Mitigation Module");
             notifyListeners(actualClientId, message, result);
             return result;
         }
 
-        // 1. Authentication Check (Weak Attacker / Impersonation Detection)
+        // Step 2: bind the claimed ECU identity to the connected TCP client.
         if (!registeredEcus.contains(actualClientId)) {
             mitigationModule.blockClient(actualClientId, clientIp, socket);
             loggingModule.logAttackEvent(actualClientId, message, "MASQUERADE ATTACK DETECTED",
@@ -139,7 +137,7 @@ public class CANIntrusionDetectionSystem {
 
         String pattern = patternKey(message.getMessageId(), claimedSource, destination);
 
-        // Learning Mode: record patterns and signals
+        // Learning mode updates the demo's allowed patterns, transitions, and signal baseline.
         if (learningPhase) {
             allowedPatterns.add(pattern);
             msgGraph.recordSequenceTransition(claimedSource, destination);
@@ -150,7 +148,7 @@ public class CANIntrusionDetectionSystem {
             return result;
         }
 
-        // 2. JGraphT Message Sequence Graph (MSG) Transition Check
+        // Step 3: check the learned message pattern and ECU transition rules.
         String lastObserved = msgGraph.getLastObservedEcu();
         if (lastObserved != null && !msgGraph.hasValidTransition(lastObserved, claimedSource) && !lastObserved.equals(claimedSource)) {
             mitigationModule.blockClient(actualClientId, clientIp, socket);
@@ -172,7 +170,7 @@ public class CANIntrusionDetectionSystem {
             return result;
         }
 
-        // 3. Time-Series Statistical Signal Anomaly Check (IEEE Paper Section IV-C & IV-E)
+        // Step 4: compare payload values with the source ECU's learned signal statistics.
         SignalAnomalyResult signalCheck = checkSignalAnomalies(claimedSource, message.getData());
         if (signalCheck.isAnomalous()) {
             mitigationModule.blockClient(actualClientId, clientIp, socket);
@@ -183,7 +181,7 @@ public class CANIntrusionDetectionSystem {
             return result;
         }
 
-        // If valid, update graph sequence transition and record clean message
+        // Accept the message and record the observed transition.
         msgGraph.recordSequenceTransition(claimedSource, destination);
         loggingModule.logNormalMessage(actualClientId, message, "VALID", "Message accepted");
         result = DetectionResult.valid("VALID", "Message accepted");
