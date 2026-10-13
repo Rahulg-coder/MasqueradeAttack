@@ -1,10 +1,6 @@
 package com.canids.model;
 
-/**
- * IEEE Paper: Node Annotation with Statistical Attributes
- * Stores statistical attributes (mean mu, std-dev sigma, sample count)
- * derived from time-series payload signals of a CAN ID node.
- */
+/** Running signal statistics used by the TCP simulator's rule-based IDS. */
 public class SignalStats {
     private final String signalName;
     private double sum = 0.0;
@@ -59,10 +55,7 @@ public class SignalStats {
         return count == 0 ? 0 : max;
     }
 
-    /**
-     * Calculates the Z-score (number of standard deviations away from the mean).
-     * Used for statistical anomaly detection as described in Section IV-C/E of the IEEE paper.
-     */
+    /** Returns the absolute Z-score against the samples accumulated by this simulator. */
     public double calculateZScore(double value) {
         if (count < 3 || stdDev == 0.0) {
             // Insufficient variance baseline or too few samples

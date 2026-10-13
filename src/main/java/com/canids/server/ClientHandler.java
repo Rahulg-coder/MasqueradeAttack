@@ -8,10 +8,10 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-/**
- * SRS 3.1 & IEEE Paper External Connection Handler:
- * Listens to local and remote TCP socket client connections (e.g. external laptops),
- * checks IP/client mitigation blacklist, and inspects all CAN messages.
+/** Handles TCP clients for the simulator gateway.
+ *
+ * <p>Flow: reject blocked IPs -> read the client handshake and messages -> pass
+ * each message to the rule-based IDS -> return its accept-or-block decision.
  */
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -28,7 +28,6 @@ public class ClientHandler implements Runnable {
         String clientIp = (socket.getInetAddress() != null) ? socket.getInetAddress().getHostAddress() : "UNKNOWN_IP";
 
         try {
-            // Check IP blacklist immediately
             if (ids.getMitigationModule().isBlocked(null, clientIp)) {
                 System.out.println("[Gateway] Rejecting connection attempt from BLOCKED IP: " + clientIp);
                 PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);

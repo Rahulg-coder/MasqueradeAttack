@@ -7,10 +7,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-/**
- * SRS 3.1 & IEEE Paper Section I/IV Attack Simulator:
- * Simulates various masquerade attack vectors against the CAN Gateway Server.
- */
+/** Test client that sends predefined attack cases to the TCP simulator gateway. */
 public class MasqueradeAttackSimulator {
     private final String host;
     private final int port;
@@ -84,7 +81,7 @@ public class MasqueradeAttackSimulator {
             writer.println("CONNECT|ECU_SENSOR");
             System.out.println("  Handshake response: " + reader.readLine());
 
-            // Sending an unallowed pattern ID 999 or unexpected destination
+            // Exercise the simulator rule for an unlearned message pattern and destination.
             CANMessage sequenceMessage = new CANMessage(999, "ECU_SENSOR", "ECU_BRAKE", "UNAUTHORIZED_CMD=1");
             writer.println(sequenceMessage.serialize());
             System.out.println("  Sent invalid sequence pattern: " + sequenceMessage.serialize());

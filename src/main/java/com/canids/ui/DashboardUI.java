@@ -83,19 +83,14 @@ public class DashboardUI extends Application {
     public void start(Stage primaryStage) {
         primaryStage.setTitle("CAN Masquerade Intrusion Detection System Console");
 
-        // 1. Header Bar
         HBox headerBox = createHeaderBox();
 
-        // 2. Control Toolbar
         HBox controlBox = createControlBox();
 
-        // 3. Central Table for Messages
         TableView<LogEntry> messageTable = createMessageTable();
 
-        // 4. Right Side Panel for Topology & Alerts
         VBox rightSidePanel = createRightSidePanel();
 
-        // Main Layout
         BorderPane rootPane = new BorderPane();
         VBox topContainer = new VBox(headerBox, controlBox);
         rootPane.setTop(topContainer);
@@ -109,7 +104,7 @@ public class DashboardUI extends Application {
         primaryStage.setOnCloseRequest(e -> stopAllServices());
         primaryStage.show();
 
-        // Auto-start server in JavaFX UI mode
+        // Start the gateway alongside the dashboard.
         startGatewayServer();
     }
 

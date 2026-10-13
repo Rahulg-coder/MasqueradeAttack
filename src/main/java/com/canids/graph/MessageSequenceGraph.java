@@ -8,13 +8,11 @@ import org.jgrapht.graph.DefaultWeightedEdge;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * SRS 3.1 & IEEE Paper Section IV-A / IV-C:
- * Represents CAN traffic as a Message Sequence Graph (MSG) using JGraphT.
- * Nodes correspond to CAN Message IDs / ECUs.
- * Edges represent sequential relationships between consecutive messages.
- * Edge weights quantify observed communication sequence frequencies.
- * Nodes are annotated with statistical attributes (mean mu, std-dev sigma) of signals.
+/** Transition graph and signal-statistics store for the TCP simulator.
+ *
+ * <p>Nodes are ECU names, directed edges count observed source-to-destination
+ * transitions, and each node keeps running signal statistics. This simulator
+ * graph is distinct from the per-window CAN-ID graphs in the ROAD pipeline.
  */
 public class MessageSequenceGraph {
     private final Graph<String, DefaultWeightedEdge> graph;
@@ -56,9 +54,7 @@ public class MessageSequenceGraph {
         lastObservedEcu = targetEcu;
     }
 
-    /**
-     * Records a numerical signal value for node annotation (IEEE Paper Section IV-C).
-     */
+    /** Adds a sample to the named ECU's running signal statistics. */
     public synchronized void recordSignalValue(String ecuId, String signalName, double value) {
         addEcuNode(ecuId);
         Map<String, SignalStats> signals = nodeSignalStats.computeIfAbsent(ecuId, k -> new ConcurrentHashMap<>());
